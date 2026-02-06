@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     "core",
     "core.user",
     "core.auth",
+    "core.post",
 ]
 
 MIDDLEWARE = [
@@ -111,6 +112,12 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+DEFAULT_AVATAR_URL = "https://api.dicebear.com/7.x/initials/svg?seed=U"
+
 # Custom user model
 AUTH_USER_MODEL = "core_user.User"
 
@@ -120,5 +127,5 @@ REST_FRAMEWORK = {
     ),
     "DEFAULT_FILTER_BACKENDS": ["django_filters.rest_framework.DjangoFilterBackend"],
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.LimitOffsetPagination",
-    "PAGE_SIZE": 10,
+    "PAGE_SIZE": 15,
 }

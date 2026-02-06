@@ -1,8 +1,8 @@
 from rest_framework import serializers
 from django.conf import settings
 
-from core.user.models import User
 from core.abstract.serializers import AbstractSerializer
+from core.user.models import User
 
 
 class UserSerializer(AbstractSerializer):
@@ -39,4 +39,4 @@ class UserSerializer(AbstractSerializer):
             "updated",
             "posts_count",
         ]
-        read_only_field = ["is_active"]
+        read_only_fields = ["is_active"]

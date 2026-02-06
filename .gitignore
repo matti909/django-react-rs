@@ -1,9 +1,13 @@
 venv/
+__pycache__/
+*.pyc
 
 CLAUDE.md
 front/pnpm-workspace.yaml
+front/pnpm-lock.yaml
+front/node_modules/
 
 server/db.sqlite3
-server/CoreRoot/__pycache__/
+server/media/
+
 .mcp.json
-front/pnpm-lock.yaml
