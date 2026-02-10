@@ -3,6 +3,7 @@ from rest_framework.exceptions import ValidationError
 from core.abstract.serializers import AbstractSerializer
 from core.post.models import Post
 from core.user.models import User
+from core.user.serializers import UserSerializer
 
 
 class PostSerializer(AbstractSerializer):

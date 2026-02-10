@@ -1,8 +1,11 @@
+import useSWR from "swr";
 import { Link } from "react-router";
+import { fetcher } from "~/lib/axios";
+import { getUser } from "~/lib/auth";
 import { Avatar, AvatarFallback } from "~/components/ui/avatar";
-import { Button } from "~/components/ui/button";
-import { Card, CardContent, CardHeader } from "~/components/ui/card";
-import { Textarea } from "~/components/ui/textarea";
+import { Card, CardContent } from "~/components/ui/card";
+import Post from "~/components/posts/Post";
+import CreatePost from "~/components/posts/CreatePost";
 import type { Route } from "./+types/home";
 
 export function meta({}: Route.MetaArgs) {
@@ -13,84 +16,45 @@ export function meta({}: Route.MetaArgs) {
 }
 
 export default function Home() {
+  const user = getUser();
+  const { data, mutate } = useSWR("/api/post/", fetcher, {
+    refreshInterval: 30000,
+  });
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-2xl items-center justify-between px-4">
           <h1 className="text-lg font-semibold">Feed</h1>
-          <div className="flex items-center gap-3">
-            <Link to="/profile">
-              <Avatar className="h-8 w-8">
-                <AvatarFallback>U</AvatarFallback>
-              </Avatar>
-            </Link>
-          </div>
+          <Link to={user ? `/profile/${user.id}` : "#"}>
+            <Avatar className="h-8 w-8">
+              <AvatarFallback>
+                {user?.username?.slice(0, 2).toUpperCase() ?? "U"}
+              </AvatarFallback>
+            </Avatar>
+          </Link>
         </div>
       </header>
 
-      {/* Main content */}
       <main className="mx-auto max-w-2xl px-4 py-6 space-y-6">
-        {/* New post */}
         <Card>
           <CardContent className="pt-6">
             <div className="flex gap-3">
               <Avatar className="h-10 w-10">
-                <AvatarFallback>U</AvatarFallback>
+                <AvatarFallback>
+                  {user?.username?.slice(0, 2).toUpperCase() ?? "U"}
+                </AvatarFallback>
               </Avatar>
-              <div className="flex-1 space-y-3">
-                <Textarea
-                  placeholder="¿Qué estás pensando?"
-                  className="min-h-[80px] resize-none"
-                />
-                <div className="flex justify-end">
-                  <Button size="sm">Publicar</Button>
-                </div>
+              <div className="flex-1">
+                <CreatePost refresh={mutate} />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Placeholder posts */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <Avatar className="h-10 w-10">
-                <AvatarFallback>JD</AvatarFallback>
-              </Avatar>
-              <div>
-                <p className="text-sm font-medium">John Doe</p>
-                <p className="text-xs text-muted-foreground">Hace 2 horas</p>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm">
-              Este es un post de ejemplo en el feed. Cuando el backend esté
-              conectado, los posts reales aparecerán aquí.
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <Avatar className="h-10 w-10">
-                <AvatarFallback>MR</AvatarFallback>
-              </Avatar>
-              <div>
-                <p className="text-sm font-medium">Maria Rodriguez</p>
-                <p className="text-xs text-muted-foreground">Hace 5 horas</p>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm">
-              Otro post de ejemplo para mostrar cómo se ve el feed con múltiples
-              publicaciones.
-            </p>
-          </CardContent>
-        </Card>
+        {data?.results?.map((post: any) => (
+          <Post key={post.id} post={post} refresh={mutate} />
+        ))}
       </main>
     </div>
   );
