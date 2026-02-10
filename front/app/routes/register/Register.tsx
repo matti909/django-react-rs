@@ -1,5 +1,6 @@
-import { useActionState } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router";
+import { toast } from "sonner";
 import axiosService from "~/lib/axios";
 import { setTokens, setUser } from "~/lib/auth";
 import { Button } from "~/components/ui/button";
@@ -15,12 +16,33 @@ import {
   CardTitle,
 } from "~/components/ui/card";
 
-type RegisterState = {
-  error?: string;
-  success?: boolean;
-};
+type FieldErrors = Record<string, string>;
 
-const initialState: RegisterState = {};
+function validateField(name: string, value: string): string | null {
+  switch (name) {
+    case "first_name":
+      if (!value.trim()) return "El nombre es requerido";
+      return null;
+    case "last_name":
+      if (!value.trim()) return "El apellido es requerido";
+      return null;
+    case "username":
+      if (!value.trim()) return "El nombre de usuario es requerido";
+      if (value.length < 3) return "Mínimo 3 caracteres";
+      return null;
+    case "email":
+      if (!value.trim()) return "El email es requerido";
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value))
+        return "Email inválido";
+      return null;
+    case "password":
+      if (!value) return "La contraseña es requerida";
+      if (value.length < 8) return "Mínimo 8 caracteres";
+      return null;
+    default:
+      return null;
+  }
+}
 
 export function meta() {
   return [
@@ -31,44 +53,71 @@ export function meta() {
 
 export default function Register() {
   const navigate = useNavigate();
+  const [errors, setErrors] = useState<FieldErrors>({});
+  const [isPending, setIsPending] = useState(false);
 
-  async function registerAction(
-    _prev: RegisterState,
-    formData: FormData,
-  ): Promise<RegisterState> {
-    const username = formData.get("username") as string;
-    const email = formData.get("email") as string;
-    const password = formData.get("password") as string;
-    const first_name = formData.get("first_name") as string;
-    const last_name = formData.get("last_name") as string;
-    const bio = (formData.get("bio") as string) ?? "";
+  function handleBlur(e: React.FocusEvent<HTMLInputElement>) {
+    const { name, value } = e.target;
+    const error = validateField(name, value);
+    setErrors((prev) => {
+      if (error) return { ...prev, [name]: error };
+      const { [name]: _, ...rest } = prev;
+      return rest;
+    });
+  }
 
-    if (!username || !email || !password || !first_name || !last_name) {
-      return { error: "Todos los campos obligatorios son requeridos" };
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const fields = Object.fromEntries(formData.entries()) as Record<
+      string,
+      string
+    >;
+
+    const newErrors: FieldErrors = {};
+    for (const name of [
+      "first_name",
+      "last_name",
+      "username",
+      "email",
+      "password",
+    ]) {
+      const error = validateField(name, fields[name] ?? "");
+      if (error) newErrors[name] = error;
     }
 
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
+    setIsPending(true);
     try {
       const res = await axiosService.post("/api/auth/register/", {
-        username,
-        email,
-        password,
-        first_name,
-        last_name,
-        bio,
+        username: fields.username,
+        email: fields.email,
+        password: fields.password,
+        first_name: fields.first_name,
+        last_name: fields.last_name,
+        bio: fields.bio ?? "",
       });
       setTokens(res.data.access, res.data.refresh);
       setUser(res.data.user);
       navigate("/");
-      return { success: true };
-    } catch {
-      return { error: "Error al crear la cuenta. Intenta con otros datos." };
+    } catch (err: any) {
+      const data = err.response?.data;
+      if (data && typeof data === "object") {
+        for (const [, value] of Object.entries(data)) {
+          const msg = Array.isArray(value) ? value[0] : String(value);
+          toast.error(msg);
+        }
+      } else {
+        toast.error("Error al crear la cuenta. Intenta de nuevo.");
+      }
+    } finally {
+      setIsPending(false);
     }
   }
-
-  const [state, formAction, isPending] = useActionState(
-    registerAction,
-    initialState,
-  );
 
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
@@ -79,11 +128,8 @@ export default function Register() {
             Completa los datos para registrarte
           </CardDescription>
         </CardHeader>
-        <form action={formAction}>
+        <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
-            {state.error && (
-              <p className="text-sm text-destructive">{state.error}</p>
-            )}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="first_name">Nombre</Label>
@@ -92,8 +138,11 @@ export default function Register() {
                   name="first_name"
                   type="text"
                   placeholder="Juan"
-                  required
+                  onBlur={handleBlur}
                 />
+                {errors.first_name && (
+                  <p className="text-sm text-destructive">{errors.first_name}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="last_name">Apellido</Label>
@@ -102,8 +151,11 @@ export default function Register() {
                   name="last_name"
                   type="text"
                   placeholder="Pérez"
-                  required
+                  onBlur={handleBlur}
                 />
+                {errors.last_name && (
+                  <p className="text-sm text-destructive">{errors.last_name}</p>
+                )}
               </div>
             </div>
             <div className="space-y-2">
@@ -113,8 +165,11 @@ export default function Register() {
                 name="username"
                 type="text"
                 placeholder="johndoe"
-                required
+                onBlur={handleBlur}
               />
+              {errors.username && (
+                <p className="text-sm text-destructive">{errors.username}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
@@ -123,8 +178,11 @@ export default function Register() {
                 name="email"
                 type="email"
                 placeholder="tu@email.com"
-                required
+                onBlur={handleBlur}
               />
+              {errors.email && (
+                <p className="text-sm text-destructive">{errors.email}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Contraseña</Label>
@@ -133,8 +191,11 @@ export default function Register() {
                 name="password"
                 type="password"
                 placeholder="••••••••"
-                required
+                onBlur={handleBlur}
               />
+              {errors.password && (
+                <p className="text-sm text-destructive">{errors.password}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="bio">Bio</Label>

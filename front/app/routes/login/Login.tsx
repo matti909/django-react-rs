@@ -1,5 +1,6 @@
-import { useActionState } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router";
+import { toast } from "sonner";
 import axiosService from "~/lib/axios";
 import { setTokens, setUser } from "~/lib/auth";
 import { Button } from "~/components/ui/button";
@@ -14,12 +15,22 @@ import {
   CardTitle,
 } from "~/components/ui/card";
 
-type LoginState = {
-  error?: string;
-  success?: boolean;
-};
+type FieldErrors = Record<string, string>;
 
-const initialState: LoginState = {};
+function validateField(name: string, value: string): string | null {
+  switch (name) {
+    case "email":
+      if (!value.trim()) return "El email es requerido";
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value))
+        return "Email inválido";
+      return null;
+    case "password":
+      if (!value) return "La contraseña es requerida";
+      return null;
+    default:
+      return null;
+  }
+}
 
 export function meta() {
   return [
@@ -30,18 +41,37 @@ export function meta() {
 
 export default function Login() {
   const navigate = useNavigate();
+  const [errors, setErrors] = useState<FieldErrors>({});
+  const [isPending, setIsPending] = useState(false);
 
-  async function loginAction(
-    _prev: LoginState,
-    formData: FormData,
-  ): Promise<LoginState> {
+  function handleBlur(e: React.FocusEvent<HTMLInputElement>) {
+    const { name, value } = e.target;
+    const error = validateField(name, value);
+    setErrors((prev) => {
+      if (error) return { ...prev, [name]: error };
+      const { [name]: _, ...rest } = prev;
+      return rest;
+    });
+  }
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
 
-    if (!email || !password) {
-      return { error: "Email y contraseña son requeridos" };
+    const newErrors: FieldErrors = {};
+    for (const [name, value] of Object.entries({ email, password })) {
+      const error = validateField(name, value);
+      if (error) newErrors[name] = error;
     }
 
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
+    setIsPending(true);
     try {
       const res = await axiosService.post("/api/auth/login/", {
         email,
@@ -50,16 +80,12 @@ export default function Login() {
       setTokens(res.data.access, res.data.refresh);
       setUser(res.data.user);
       navigate("/");
-      return { success: true };
     } catch {
-      return { error: "Credenciales inválidas" };
+      toast.error("Credenciales inválidas");
+    } finally {
+      setIsPending(false);
     }
   }
-
-  const [state, formAction, isPending] = useActionState(
-    loginAction,
-    initialState,
-  );
 
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
@@ -70,11 +96,8 @@ export default function Login() {
             Ingresa tus credenciales para acceder a tu cuenta
           </CardDescription>
         </CardHeader>
-        <form action={formAction}>
+        <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
-            {state.error && (
-              <p className="text-sm text-destructive">{state.error}</p>
-            )}
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -82,8 +105,11 @@ export default function Login() {
                 name="email"
                 type="email"
                 placeholder="tu@email.com"
-                required
+                onBlur={handleBlur}
               />
+              {errors.email && (
+                <p className="text-sm text-destructive">{errors.email}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Contraseña</Label>
@@ -92,8 +118,11 @@ export default function Login() {
                 name="password"
                 type="password"
                 placeholder="••••••••"
-                required
+                onBlur={handleBlur}
               />
+              {errors.password && (
+                <p className="text-sm text-destructive">{errors.password}</p>
+              )}
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-4">

@@ -18,7 +18,10 @@ const axiosService = axios.create({
 });
 
 axiosService.interceptors.request.use(async (config) => {
-  config.headers.Authorization = `Bearer ${getAccessToken()}`;
+  const token = getAccessToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
   return config;
 });
 
@@ -29,8 +32,8 @@ axiosService.interceptors.response.use(
 
 const refreshAuthLogic = async (failedRequest: any) => {
   return axios
-    .post("/refresh/token/", null, {
-      baseURL: "http://localhost:8000",
+    .post("/auth/refresh/", null, {
+      baseURL: API_URL,
       headers: {
         Authorization: `Bearer ${getRefreshToken()}`,
       },

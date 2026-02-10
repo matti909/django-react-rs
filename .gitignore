@@ -11,3 +11,4 @@ server/db.sqlite3
 server/media/
 
 .mcp.json
+server/.env
